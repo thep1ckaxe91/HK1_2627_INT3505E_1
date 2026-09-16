@@ -15,7 +15,24 @@ def find(bid):
 def list_books():
     size = int(request.args.get("page_size", 100))
     page = int(request.args.get("page", 0))
-    return jsonify(list(books.values())[page * size : page * size + size]), 200
+
+    res = list(books.values())[page * size : page * size + size]
+
+    sort_key = request.args.get("sort","id")
+    res.sort(key=lambda d : d[sort_key])
+
+    year = request.args.get("year")
+
+    if year:
+        year = int(year)
+        if year < 1900:
+                return jsonify({"err" : "Year must be > 1900"}), 400  
+        res = [b for b in res if b["year"] == year]      
+    
+    query = request.args.get("q", "")
+    res = [b for b in res if query in b["title"]]
+
+    return jsonify(res), 200
 
 
 @app.route("/books/<int:bid>", methods=["GET"])
@@ -24,7 +41,6 @@ def get_book(bid):
     if not book:
         return {"error": "not found"}, 404
     return jsonify(book), 200
-
 
 @app.route("/books", methods=["POST"])
 def create_book():
