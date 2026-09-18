@@ -32,6 +32,10 @@ def init_db():
         )""")
         get_db().commit()
 
+        with open(__file__.removesuffix('app.py') + "db_dump.sql", "w") as f:
+            for line in get_db().iterdump():
+                f.write(line + '\n')
+
 
 @app.teardown_appcontext
 def _close_connection(exception):
@@ -84,6 +88,7 @@ def list_books():
         (a, f"%{q}%"),
     )
     total = int(cur.fetchone()[0])
+    items = [{"id": row[0], "title": row[1], "author": row[2]} for row in flt]
     start = (page - 1) * size
     end = start + size
     last = (total + size - 1) // size
@@ -101,7 +106,7 @@ def list_books():
     if end < total:
         links["next"] = {"href": u(page + 1)}
     body = {
-        "data": flt,
+        "data": items,
         "pagination": {"page": page, "size": size, "total": total, "total_pages": last},
         "_links": links,
     }
