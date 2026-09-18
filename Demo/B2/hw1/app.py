@@ -5,11 +5,13 @@ app = Flask(__name__)
 
 db_path = __file__.removesuffix("app.py") + "data.db"
 
+
 def get_db():
-    db = getattr(g, '_database', None)
+    db = getattr(g, "_database", None)
     if db is None:
         db = g._database = sqlite3.connect(db_path)
     return db
+
 
 def init_db():
     with app.app_context():
@@ -22,18 +24,21 @@ def init_db():
            author VARCHAR(255) NOT NULL
         )""")
         cs.execute("""--sql
-        CREATE TABKE IF NOT EXISTS orders (
+        CREATE TABLE IF NOT EXISTS orders (
            id INTEGER PRIMARY KEY AUTOINCREMENT,
+           price FLOAT NOT NULL,
            bid INTEGER NOT NULL,
-           FOREIGN KEY bid REFERENCES books(id)
+           FOREIGN KEY (bid) REFERENCES books(id)
         )""")
         get_db().commit()
 
+
 @app.teardown_appcontext
 def _close_connection(exception):
-    db = getattr(g, '_database', None)
+    db = getattr(g, "_database", None)
     if db is not None:
         db.close()
+
 
 DEFAULT_SIZE, MAX_SIZE = 20, 100
 
@@ -49,22 +54,38 @@ def list_books():
     page = max(page, 1)
     size = max(min(size, MAX_SIZE), 1)
 
-    with app.app_context():        
-        cur = get_db().cursor()
-        cur.execute('SELECT id, title, author FROM books')
-
-        flt = cur.fetchall()
-
-    a = request.args.get("author")
-    if a:
-        flt = [b for b in flt if b[2].lower() == a.lower()]
+    a = request.args.get("author", "%")
     q = (request.args.get("q", "")).lower()
-    if q:
-        flt = [b for b in flt if q.lower() in b[1].lower()]
-    total = len(flt)
+
+    cur = get_db().cursor()
+    cur.execute(
+        """--sql
+    SELECT
+        b.id, 
+        b.title, 
+        b.author 
+    FROM books b
+    WHERE LOWER(b.author) LIKE ? AND b.title LIKE ? 
+    ORDER BY b.id
+    LIMIT ? OFFSET ? 
+    """,
+        (a, f"%{q}%", size, (page - 1) * size),
+    )
+
+    flt = cur.fetchall()
+
+    cur.execute(
+        """--sql
+    SELECT
+        COUNT(*)
+    FROM books b
+    WHERE LOWER(b.author) LIKE ? AND b.title LIKE ?
+    """,
+        (a, f"%{q}%"),
+    )
+    total = int(cur.fetchone()[0])
     start = (page - 1) * size
     end = start + size
-    items = flt[start:end]
     last = (total + size - 1) // size
 
     def u(p):
@@ -80,7 +101,7 @@ def list_books():
     if end < total:
         links["next"] = {"href": u(page + 1)}
     body = {
-        "data": items,
+        "data": flt,
         "pagination": {"page": page, "size": size, "total": total, "total_pages": last},
         "_links": links,
     }
@@ -89,10 +110,39 @@ def list_books():
     resp.headers["Cache-Control"] = "public, max-age=30"
     return resp
 
-@app.get('/order/<int:oid>')
-def get_order(oid : int) :
-    with app.app_context():
-        pass
+
+@app.get("/order/<int:oid>")
+def get_order(oid: int):
+
+    cs = get_db().cursor()
+
+    cs.execute(
+        f"""--sql
+    SELECT 
+        b.id, 
+        b.title, 
+        b.author,
+        o.price
+    FROM orders o
+    JOIN books b ON b.id = o.bid
+    WHERE o.id = ?
+    """,
+        (oid,),
+    )
+
+    row = cs.fetchone()
+
+    if row is None:
+        return jsonify(error="Not found"), 404
+
+    bid, t, a, p = row
+
+    res = make_response(
+        jsonify({"book_id": bid, "title": t, "author": a, "price": p}), 200
+    )
+    res.headers["Cache-Control"] = "public, max-age=30"
+
+    return res
 
 
 if __name__ == "__main__":
