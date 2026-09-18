@@ -11,19 +11,23 @@ def get_db():
         db = g._database = sqlite3.connect(db_path)
     return db
 
-cs = get_db().cursor()
+def init_db():
+    with app.app_context():
+        cs = get_db().cursor()
 
-cs.execute('CREATE TABLE IF NOT EXISTS books (' \
-'   id INTEGER PRIMARY KEY AUTOINCREMENT,' \
-'   title VARCHAR(255) NOT NULL,' \
-'   author VARCHAR(255) NOT NULL' \
-')')
-cs.execute('CREATE TABKE IF NOT EXISTS orders (' \
-'   id INTEGER PRIMARY KEY AUTOINCREMENT' \
-'   bid INTEGER NOT NULL' \
-'   FOREIGN KEY bid REFERENCES books(id)' \
-')')
-get_db().commit()
+        cs.execute("""--sql
+        CREATE TABLE IF NOT EXISTS books (
+           id INTEGER PRIMARY KEY AUTOINCREMENT,
+           title VARCHAR(255) NOT NULL,
+           author VARCHAR(255) NOT NULL
+        )""")
+        cs.execute("""--sql
+        CREATE TABKE IF NOT EXISTS orders (
+           id INTEGER PRIMARY KEY AUTOINCREMENT,
+           bid INTEGER NOT NULL,
+           FOREIGN KEY bid REFERENCES books(id)
+        )""")
+        get_db().commit()
 
 @app.teardown_appcontext
 def _close_connection(exception):
@@ -45,17 +49,18 @@ def list_books():
     page = max(page, 1)
     size = max(min(size, MAX_SIZE), 1)
 
-    cur = get_db().cursor()
+    with app.app_context():        
+        cur = get_db().cursor()
+        cur.execute('SELECT id, title, author FROM books')
 
-    cur.execute('SELECT * FROM books')
+        flt = cur.fetchall()
 
-    flt = cur.fetchall()
     a = request.args.get("author")
     if a:
-        flt = [b for b in flt if b["author"].lower() == a.lower()]
+        flt = [b for b in flt if b[2].lower() == a.lower()]
     q = (request.args.get("q", "")).lower()
     if q:
-        flt = [b for b in flt if q.lower() in b["title"].lower()]
+        flt = [b for b in flt if q.lower() in b[1].lower()]
     total = len(flt)
     start = (page - 1) * size
     end = start + size
@@ -86,7 +91,10 @@ def list_books():
 
 @app.get('/order/<int:oid>')
 def get_order(oid : int) :
-    
+    with app.app_context():
+        pass
+
 
 if __name__ == "__main__":
+    init_db()
     app.run()
