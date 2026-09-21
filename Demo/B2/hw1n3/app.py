@@ -1,5 +1,6 @@
 from flask import Flask, jsonify, request, make_response, g
 import sqlite3
+from hashlib import sha256
 
 app = Flask(__name__)
 
@@ -149,6 +150,39 @@ def get_order(oid: int):
 
     return res
 
+
+@app.get("/books/<int:bid>")
+def get_book(bid:int):
+
+    etag = request.headers["If-None-Match"]
+
+    cs = get_db().cursor()
+    cs.execute(
+        f"""--sql
+        SELECT 
+            *
+        FROM books
+        WHERE id = ?
+""",(bid,)
+    )
+    row = cs.fetchone()
+
+    if row is None:
+        return jsonify(error="Not found"), 404
+    
+    if etag and etag == sha256(row, usedforsecurity=False): 
+        return jsonify(), 304
+
+    i, t, a = row
+
+    res = make_response(
+        jsonify({"book_id": i, "title": t, "author": a}), 200
+    )
+    res.headers["Cache-Control"] = "public, max-age=123456"
+    res.headers["ETag"] = sha256(row, usedforsecurity=False)
+        
+
+    return res
 
 if __name__ == "__main__":
     init_db()
