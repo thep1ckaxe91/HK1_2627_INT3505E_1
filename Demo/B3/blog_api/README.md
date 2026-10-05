@@ -19,3 +19,17 @@ Các resource là:
 | Tag     | /tags                       | /tags/{tag_id}         | /posts/{post_id}/tags (tags assigned to post)         |
 | Follow  | —                           | —                      | /users/{user_id}/followers /users/{user_id}/following |
 
+### Routes cho /posts
+```text
+/posts
+├── GET, POST
+└── /{post_id}
+    ├── GET, PUT, PATCH, DELETE
+    ├── /comments
+    │   ├── GET, POST
+    │   └── /{comment_id} (GET, DELETE)
+    └── /tags
+        ├── GET, POST
+        └── /{tag_id} (DELETE)
+```
+
