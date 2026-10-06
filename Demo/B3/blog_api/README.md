@@ -33,3 +33,13 @@ Các resource là:
         └── /{tag_id} (DELETE)
 ```
 
+
+### Run with paging
+![alt text](image.png)
+
+### Run with paging and sort ascending
+![alt text](image-2.png)
+
+### Run with paging and sort descending
+
+![alt text](image-1.png)
