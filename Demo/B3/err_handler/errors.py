@@ -5,12 +5,13 @@ ERROR_BASE = "/error"
 class ApiProblem(Exception):
 
     def __init__(self, status, title, detail = None, type_path=None, **extra) -> None:
+        super().__init__(title)
         self.status = status
         self.title = title
         self.detail = detail
-        self.type = f"{ERROR_BASE}/{type_path}" if type_path else "about:blank"
+        self.type_path = type_path
+        self.type = f"{ERROR_BASE}/{type_path}" if type_path else "about:oblank"
         self.extra = extra
-        _problem(self.status, self.title, self.detail, type_path, **extra)
 
 def _problem(status, title, detail=None, type_path=None, **extra):
     body = {

@@ -1,5 +1,5 @@
 from flask import Flask, jsonify
-from errors import ApiProblem
+from errors import ApiProblem, _problem
 user = [
     {
         "id" : 1000,
@@ -13,8 +13,17 @@ def find_user(id):
     return next((u for u in user if u["id"] == id), None)
 
 @app.errorhandler(ApiProblem)
+def handle_api_problem(err: ApiProblem):
+    return _problem(
+        status=err.status,
+        title=err.title,
+        detail=err.detail,
+        type_path=err.type_path,
+        **err.extra
+    )
+
 @app.get("/users/<int:id>")
-def get_user(id):
+def get_user(id:int):
     user = find_user(id)
     if not user:
         raise ApiProblem(
