@@ -1,0 +1,259 @@
+openapi: 3.0.3
+info:
+  title: Pet Store API
+  version: 1.0.0
+  description: OpenAPI 3.0.3 specification with public read operations and secured mutating operations.
+  license:
+    name: "GPL3"
+    url: "https://www.gnu.org/licenses/gpl-3.0.en.html"
+servers:
+  - url: http://localhost:5000/api
+security:
+  - ApiKeyAuth: []
+
+paths:
+  /pets:
+    get:
+      summary: List all pets
+      operationId: listPets
+      tags:
+        - pets
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          $ref: '#/components/responses/PetsResponse'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+
+    post:
+      summary: Create a pet
+      operationId: createPet
+      tags:
+        - pets
+      requestBody:
+        $ref: '#/components/requestBodies/CreatePetBody'
+      responses:
+        '201':
+          $ref: '#/components/responses/PetResponse'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+      callbacks:
+        onPetEvent:
+          $ref: '#/components/callbacks/PetStatusCallback'
+
+  /pets/{petId}:
+    get:
+      summary: Get pet by ID
+      operationId: getPetById
+      tags:
+        - pets
+      security: [] # Bypass global security scheme cho public read
+      parameters:
+        - $ref: '#/components/parameters/PetIdParam'
+      responses:
+        '200':
+          $ref: '#/components/responses/PetResponse'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+
+    patch:
+      summary: Partially update a pet
+      operationId: updatePet
+      tags:
+        - pets
+      parameters:
+        - $ref: '#/components/parameters/PetIdParam'
+      requestBody:
+        $ref: '#/components/requestBodies/UpdatePetBody'
+      responses:
+        '200':
+          $ref: '#/components/responses/PetResponse'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+
+    delete:
+      summary: Delete a pet
+      operationId: deletePet
+      tags:
+        - pets
+      parameters:
+        - $ref: '#/components/parameters/PetIdParam'
+      responses:
+        '204':
+          $ref: '#/components/responses/EmptyResponse'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+
+components:
+  schemas:
+    Pet:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        tag:
+          type: string
+
+    Pets:
+      type: array
+      items:
+        $ref: '#/components/schemas/Pet'
+
+    NewPet:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+        tag:
+          type: string
+        callbackUrl:
+          type: string
+          format: uri
+
+    UpdatePet:
+      type: object
+      properties:
+        name:
+          type: string
+        tag:
+          type: string
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: int32
+        message:
+          type: string
+
+  parameters:
+    LimitParam:
+      name: limit
+      in: query
+      description: Number of pets to return
+      required: false
+      schema:
+        type: integer
+        format: int32
+        default: 20
+
+    PetIdParam:
+      name: petId
+      in: path
+      description: Unique ID of the pet
+      required: true
+      schema:
+        type: integer
+        format: int64
+
+  headers:
+    X-Rate-Limit:
+      description: Number of allowed requests per minute window
+      schema:
+        type: integer
+        format: int32
+
+  responses:
+    PetResponse:
+      description: Pet item retrieved/created successfully
+      headers:
+        X-Rate-Limit:
+          $ref: '#/components/headers/X-Rate-Limit'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Pet'
+          examples:
+            default:
+              $ref: '#/components/examples/PetExample'
+
+    PetsResponse:
+      description: List of pet items
+      headers:
+        X-Rate-Limit:
+          $ref: '#/components/headers/X-Rate-Limit'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Pets'
+
+    EmptyResponse:
+      description: Entity processed/deleted successfully; no content returned
+
+    ErrorResponse:
+      description: Generic error structure
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  requestBodies:
+    CreatePetBody:
+      description: Payload to create a new pet
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/NewPet'
+          examples:
+            default:
+              $ref: '#/components/examples/CreatePetExample'
+
+    UpdatePetBody:
+      description: Fields to patch on an existing pet
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/UpdatePet'
+
+  examples:
+    PetExample:
+      summary: Sample pet record
+      value:
+        id: 101
+        name: "Shiba Inu"
+        tag: "dog"
+
+    CreatePetExample:
+      summary: Sample payload for POST /pets
+      value:
+        name: "Shiba Inu"
+        tag: "dog"
+        callbackUrl: "https://api.client.internal/events"
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-KEY
+      description: Header token authentication
+
+  callbacks:
+    PetStatusCallback:
+      '{$request.body#/callbackUrl}':
+        post:
+          summary: Callback when a pet record created
+          requestBody:
+            required: true
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/Pet'
+          responses:
+            '200':
+              description: Webhook received acknowledgment
