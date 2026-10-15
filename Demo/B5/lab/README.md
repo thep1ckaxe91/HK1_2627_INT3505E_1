@@ -47,7 +47,7 @@
 
 ## ERD
 
-<!-- Paste your ERD screenshot here -->
+![](screenshots/library_ERD.png)
 
 ---
 
