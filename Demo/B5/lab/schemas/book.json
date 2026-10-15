@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["title"],
+  "properties": {
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "isbn": {
+      "type": "string",
+      "pattern": "^\\d{13}$"
+    },
+    "price": {
+      "type": "object",
+      "properties": {
+        "amount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "currency": {
+          "enum": ["VND", "USD", "EUR"]
+        }
+      },
+      "required": ["amount", "currency"]
+    },
+    "stock": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "category_id": {
+      "type": "integer"
+    },
+    "authors": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/author"
+      }
+    }
+  },
+  "$defs": {
+    "author": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer"
+        },
+        "name": {
+          "type": "string"
+        },
+        "role": {
+          "enum": ["lead", "co", "ed"]
+        }
+      }
+    }
+  }
+}
