@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Library Member (Input)",
+  "type": "object",
+  "required": ["email", "display_name"],
+  "properties": {
+    "email": {
+      "type": "string",
+      "format": "email",
+      "minLength": 5
+    },
+    "display_name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "membership_type": {
+      "enum": ["standard", "premium", "student"],
+      "default": "standard"
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Library Loan (Input)",
+  "type": "object",
+  "required": ["copy_id", "member_id"],
+  "properties": {
+    "copy_id": {
+      "type": "integer",
+      "description": "ID of the BookCopy being loaned"
+    },
+    "member_id": {
+      "type": "integer",
+      "description": "ID of the Member borrowing"
+    },
+    "due_date": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO 8601 date (YYYY-MM-DD). Defaults to 14 days from now if omitted."
+    }
+  }
+}

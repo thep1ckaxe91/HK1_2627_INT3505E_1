@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Book Copy (Input)",
+  "type": "object",
+  "required": ["barcode"],
+  "properties": {
+    "barcode": {
+      "type": "string",
+      "pattern": "^[A-Z0-9\\-]{5,30}$",
+      "description": "Unique barcode for the physical copy"
+    },
+    "status": {
+      "enum": ["available", "loaned", "damaged", "lost"],
+      "default": "available"
+    }
+  }
+}
