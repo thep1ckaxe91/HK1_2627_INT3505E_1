@@ -1,3 +1,22 @@
+# Lab 1
+
+![](screenshots/lab1.png)
+
+# Lab 2
+
+## Basic pagination
+![](screenshots/lab2_1.png)
+![](screenshots/lab2_2.png)
+
+
+## Cursor based
+![](screenshots/lab2_3.png)
+![](screenshots/lab2_4.png)
+
+## Sort
+![](screenshots/lab2_5.png)
+![](screenshots/lab2_6.png)
+
 # Bài tập về nhà 1 — Library Domain (Thư viện)
 
 ## Domain: Hệ thống quản lý thư viện
