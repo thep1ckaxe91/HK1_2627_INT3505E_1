@@ -13,12 +13,14 @@ def create_app():
     from routes.books import bp as books_bp
     from routes.authors import bp as authors_bp
     from routes.categories import bp as categories_bp
-    from routes.users import bp as users_bp
+    from routes.members import bp as members_bp
+    from routes.loans import bp as loans_bp
 
     app.register_blueprint(books_bp)
     app.register_blueprint(authors_bp)
     app.register_blueprint(categories_bp)
-    app.register_blueprint(users_bp)
+    app.register_blueprint(members_bp)
+    app.register_blueprint(loans_bp)
 
     with app.app_context():
         db.create_all()

@@ -1,22 +1,22 @@
 from jsonschema import validate, ValidationError
 from flask import request, jsonify, Blueprint
 from sqlalchemy import select, func, tuple_
-from models import Book, Author, Category, BookAuthor, db
+from models import Book, Author, Category, BookAuthor, BookCopy, Review, Member, db
 import json
 import os
 import base64
 
 SCHEMA = json.load(open(os.path.join(os.path.dirname(__file__), "..", "schemas", "book.json")))
+COPY_SCHEMA = json.load(open(os.path.join(os.path.dirname(__file__), "..", "schemas", "book_copy.json")))
 
 bp = Blueprint("books", __name__, url_prefix="/api/v1/books")
 
-# --- Lab 2: Sort whitelist, pagination helpers ---
-
 SORT_WHITELIST = {
     "id": Book.id,
-    "price": Book.price_vnd,
     "title": Book.title,
-    "stock": Book.stock,
+    "published_year": Book.published_year,
+    "year": Book.published_year,
+    "total_copies": Book.total_copies,
 }
 
 DEFAULT_LIMIT = 20
@@ -24,9 +24,6 @@ MAX_LIMIT = 100
 
 
 def _parse_sort(raw):
-    """Parse multi-key sort string like '-price,title'.
-    Returns list of SQLAlchemy order_by clauses, the primary sort column,
-    and whether primary is descending. Returns error tuple on bad input."""
     keys = []
     primary_col = None
     primary_desc = False
@@ -43,13 +40,11 @@ def _parse_sort(raw):
         if i == 0:
             primary_col = col
             primary_desc = desc
-    # Always tie-break with id
     if primary_col is not None:
         id_already = any(name == "id" for s in raw.split(",") if (name := s.strip().lstrip("-")))
         if not id_already:
             keys.append(Book.id.desc() if primary_desc else Book.id.asc())
     else:
-        # Default sort
         keys = [Book.id.desc()]
         primary_col = Book.id
         primary_desc = True
@@ -67,13 +62,12 @@ def _decode_cursor(raw):
     return json.loads(base64.urlsafe_b64decode(raw + pad))
 
 
-def _offset_pagination(q, limit):
-    """Offset/limit pagination strategy."""
+def _offset_pagination(q, limit, fields=None):
     offset = request.args.get("offset", 0, type=int)
     total = db.session.scalar(select(func.count()).select_from(q.subquery()))
     rows = db.session.scalars(q.offset(offset).limit(limit)).all()
     return jsonify({
-        "data": [b.to_dict() for b in rows],
+        "data": [b.to_dict(fields=fields) for b in rows],
         "pagination": {
             "strategy": "offset",
             "offset": offset,
@@ -84,8 +78,7 @@ def _offset_pagination(q, limit):
     })
 
 
-def _cursor_pagination(q, limit, sort_raw, primary_col, primary_desc):
-    """Cursor-based pagination strategy with composite (sort_value, id) cursor."""
+def _cursor_pagination(q, limit, sort_raw, primary_col, primary_desc, fields=None):
     cursor_raw = request.args.get("cursor")
     if cursor_raw:
         try:
@@ -113,7 +106,7 @@ def _cursor_pagination(q, limit, sort_raw, primary_col, primary_desc):
         })
 
     return jsonify({
-        "data": [b.to_dict() for b in rows],
+        "data": [b.to_dict(fields=fields) for b in rows],
         "pagination": {
             "strategy": "cursor",
             "next_cursor": next_cursor,
@@ -124,16 +117,6 @@ def _cursor_pagination(q, limit, sort_raw, primary_col, primary_desc):
 
 @bp.get("")
 def list_books():
-    """Lab 2: list with dual pagination (offset/cursor), genre filter, multi-key sort.
-
-    Query params:
-      ?strategy=offset|cursor  (default: cursor)
-      ?sort=-price,title       (multi-key, - for desc, whitelist enforced)
-      ?genre=<slug>            (filter by category slug)
-      ?limit=20                (max 100)
-      ?offset=0                (offset strategy only)
-      ?cursor=<token>          (cursor strategy only)
-    """
     strategy = request.args.get("strategy", "cursor")
     if strategy not in ("offset", "cursor"):
         return jsonify({"error": "bad_request", "message": "strategy must be 'offset' or 'cursor'"}), 400
@@ -147,15 +130,21 @@ def list_books():
 
     q = select(Book).order_by(*order_clauses)
 
-    # Genre filter (by category slug)
-    genre = request.args.get("genre")
-    if genre:
-        q = q.join(Category, Book.category_id == Category.id).filter(Category.slug == genre)
+    cat_slug = request.args.get("category") or request.args.get("genre")
+    if cat_slug:
+        q = q.join(Category, Book.category_id == Category.id).filter(Category.slug == cat_slug)
+
+    year = request.args.get("year", type=int) or request.args.get("published_year", type=int)
+    if year:
+        q = q.filter(Book.published_year == year)
+
+    fields_raw = request.args.get("fields")
+    fields = [f.strip() for f in fields_raw.split(",") if f.strip()] if fields_raw else None
 
     if strategy == "offset":
-        return _offset_pagination(q, limit)
+        return _offset_pagination(q, limit, fields=fields)
     else:
-        return _cursor_pagination(q, limit, sort_raw, primary_col, primary_desc)
+        return _cursor_pagination(q, limit, sort_raw, primary_col, primary_desc, fields=fields)
 
 
 @bp.get("/<int:book_id>")
@@ -163,7 +152,9 @@ def get_book(book_id):
     book = db.session.get(Book, book_id)
     if not book:
         return jsonify({"error": "not_found", "message": f"Book {book_id} not found"}), 404
-    return jsonify(book.to_dict())
+    fields_raw = request.args.get("fields")
+    fields = [f.strip() for f in fields_raw.split(",") if f.strip()] if fields_raw else None
+    return jsonify(book.to_dict(fields=fields))
 
 
 @bp.post("")
@@ -180,7 +171,6 @@ def create_book():
             "message": e.message,
         }), 400
 
-    # Resolve category
     cat = None
     if "category_id" in payload:
         cat = db.session.get(Category, payload["category_id"])
@@ -188,14 +178,14 @@ def create_book():
     book = Book(
         title=payload["title"],
         isbn=payload.get("isbn"),
-        price_vnd=payload.get("price", {}).get("amount", 0),
-        stock=payload.get("stock", 0),
+        published_year=payload.get("published_year"),
+        description=payload.get("description", ""),
+        total_copies=payload.get("total_copies", 0),
         category_id=cat.id if cat else None,
     )
     db.session.add(book)
-    db.session.flush()  # get book.id
+    db.session.flush()
 
-    # Handle authors
     for a_data in payload.get("authors", []):
         author = None
         if "id" in a_data:
@@ -228,10 +218,12 @@ def update_book(book_id):
         book.title = payload["title"]
     if "isbn" in payload:
         book.isbn = payload["isbn"]
-    if "price" in payload:
-        book.price_vnd = payload["price"].get("amount", book.price_vnd)
-    if "stock" in payload:
-        book.stock = payload["stock"]
+    if "published_year" in payload:
+        book.published_year = payload["published_year"]
+    if "description" in payload:
+        book.description = payload["description"]
+    if "total_copies" in payload:
+        book.total_copies = payload["total_copies"]
     if "category_id" in payload:
         book.category_id = payload["category_id"]
     db.session.commit()
@@ -297,6 +289,46 @@ def remove_book_author(book_id, author_id):
     return "", 204
 
 
+# --- Sub-resource: /books/{id}/copies (1:N strong containment) ---
+
+@bp.get("/<int:book_id>/copies")
+def list_book_copies(book_id):
+    book = db.session.get(Book, book_id)
+    if not book:
+        return jsonify({"error": "not_found"}), 404
+    copies = db.session.query(BookCopy).filter_by(book_id=book_id).all()
+    return jsonify([c.to_dict() for c in copies])
+
+
+@bp.post("/<int:book_id>/copies")
+def add_book_copy(book_id):
+    book = db.session.get(Book, book_id)
+    if not book:
+        return jsonify({"error": "not_found"}), 404
+    req = request.get_json(silent=True) or {}
+    try:
+        validate(req, COPY_SCHEMA)
+    except ValidationError as e:
+        return jsonify({
+            "error": "validation_failed",
+            "field": list(e.path),
+            "message": e.message
+        }), 400
+
+    if db.session.query(BookCopy).filter_by(barcode=req["barcode"]).first():
+        return jsonify({"error": "conflict", "message": "Barcode already exists"}), 409
+
+    copy = BookCopy(
+        barcode=req["barcode"],
+        status=req.get("status", "available"),
+        book_id=book_id,
+    )
+    book.total_copies = (book.total_copies or 0) + 1
+    db.session.add(copy)
+    db.session.commit()
+    return jsonify(copy.to_dict()), 201
+
+
 # --- Sub-resource: /books/{id}/reviews (1:N strong containment) ---
 
 @bp.get("/<int:book_id>/reviews")
@@ -304,7 +336,6 @@ def list_book_reviews(book_id):
     book = db.session.get(Book, book_id)
     if not book:
         return jsonify({"error": "not_found"}), 404
-    from models import Review
     reviews = db.session.query(Review).filter_by(book_id=book_id).all()
     return jsonify([r.to_dict() for r in reviews])
 
@@ -315,19 +346,18 @@ def create_book_review(book_id):
     if not book:
         return jsonify({"error": "not_found"}), 404
     req = request.get_json(silent=True) or {}
-    if "rating" not in req or "user_id" not in req:
-        return jsonify({"error": "bad_request", "message": "rating and user_id required"}), 400
+    if "rating" not in req or "member_id" not in req:
+        return jsonify({"error": "bad_request", "message": "rating and member_id required"}), 400
     if not (1 <= req["rating"] <= 5):
         return jsonify({"error": "validation_failed", "message": "rating must be 1-5"}), 400
-    from models import Review, User
-    user = db.session.get(User, req["user_id"])
-    if not user:
-        return jsonify({"error": "not_found", "message": "User not found"}), 404
+    member = db.session.get(Member, req["member_id"])
+    if not member:
+        return jsonify({"error": "not_found", "message": "Member not found"}), 404
     review = Review(
         rating=req["rating"],
         comment=req.get("comment", ""),
         book_id=book_id,
-        user_id=req["user_id"],
+        member_id=req["member_id"],
     )
     db.session.add(review)
     db.session.commit()
