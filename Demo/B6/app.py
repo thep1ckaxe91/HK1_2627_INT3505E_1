@@ -74,7 +74,9 @@ def create_app(test_config=None):
         jti = jwt_payload["jti"]
         return jti in revoked_tokens
 
-    # Blueprint registrations will occur in subsequent stages
+    # Blueprint registrations
+    from routes.auth import auth_bp
+    api.register_blueprint(auth_bp)
 
     return app, api
 

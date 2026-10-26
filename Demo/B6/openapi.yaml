@@ -65,5 +65,170 @@ components:
           type: integer
           description: Next page number.
       additionalProperties: false
-paths: {}
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          description: User email address
+          example: student@vnu.edu.vn
+        password:
+          type: string
+          writeOnly: true
+          description: User plain text password
+          example: SecretPass123!
+      required:
+      - email
+      - password
+      additionalProperties: false
+    ValidationError:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: HTTP status code
+          example: 422
+        status:
+          type: string
+          description: HTTP status text
+          example: Unprocessable Entity
+        errors:
+          type: object
+          description: Mapping of field names to validation failure reasons
+          example:
+            email:
+            - Not a valid email address.
+          additionalProperties:
+            type: array
+            items:
+              type: string
+      required:
+      - code
+      - status
+      additionalProperties: false
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: HTTP status code
+          example: 401
+        status:
+          type: string
+          description: HTTP status text
+          example: Unauthorized
+        message:
+          type: string
+          description: Descriptive human-readable error message
+          example: Invalid credentials provided.
+        error_type:
+          type: string
+          default: AUTHENTICATION_ERROR
+          description: Domain-specific error code
+          example: INVALID_CREDENTIALS
+      required:
+      - code
+      - message
+      - status
+      additionalProperties: false
+    LoginResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          description: Short-lived JWT Access Token (15 mins TTL)
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        refresh_token:
+          type: string
+          description: Long-lived JWT Refresh Token (30 days TTL)
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        token_type:
+          type: string
+          default: Bearer
+          description: Token authorization type
+          example: Bearer
+        expires_in:
+          type: integer
+          default: 900
+          description: Token lifetime in seconds
+          example: 900
+        scopes:
+          type: array
+          description: Granted authorization scopes
+          example:
+          - posts:read
+          - posts:write
+          items:
+            type: string
+      required:
+      - access_token
+      - refresh_token
+      - scopes
+      additionalProperties: false
+  responses:
+    DEFAULT_ERROR:
+      description: Default error response
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+paths:
+  /auth/login:
+    post:
+      responses:
+        '422':
+          description: Input validation failure.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '429':
+          description: Too many requests. Rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication failed. Invalid email or password.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: Malformed JSON request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '200':
+          description: Login successful. Returns access and refresh JWT tokens.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      tags:
+      - auth
+      summary: User Login
+      description: "### Specification Details\n- **Scope Required**: `None` (Public\
+        \ authentication boundary).\n- **Potential Errors**:\n  - `400 Bad Request`:\
+        \ Malformed JSON or unparseable payload.\n  - `401 Unauthorized`: Invalid\
+        \ credentials (fail-closed, constant-time compare to mitigate user enumeration).\n\
+        \  - `422 Unprocessable Entity`: Schema validation failure (missing required\
+        \ fields or malformed email format).\n  - `429 Too Many Requests`: Triggered\
+        \ when credential stuffing or brute-force threshold is exceeded.\n- **Status\
+        \ Codes**:\n  - `200 OK`: Successful authentication returning short-lived\
+        \ access JWT and long-lived refresh JWT.\n  - `400`, `401`, `422`, `429`."
+      security: []
+tags:
+- name: auth
+  description: Authentication operations
 openapi: 3.0.3
