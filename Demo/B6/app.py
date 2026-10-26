@@ -1,5 +1,10 @@
 import datetime
 import os
+import sys
+
+# Ensure current module directory is in python search path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from flask import Flask
 from flask_jwt_extended import JWTManager
 from flask_smorest import Api
