@@ -76,7 +76,10 @@ def create_app(test_config=None):
 
     # Blueprint registrations
     from routes.auth import auth_bp
+    from routes.posts import posts_bp
+
     api.register_blueprint(auth_bp)
+    api.register_blueprint(posts_bp)
 
     return app, api
 

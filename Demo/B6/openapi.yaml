@@ -186,6 +186,41 @@ components:
       required:
       - access_token
       additionalProperties: false
+    PostResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Unique post ID
+          example: 1
+        author_id:
+          type: string
+          description: User ID of the post author
+          example: '1'
+        title:
+          type: string
+          description: Post title
+          example: High Performance Low-Latency Networking in C++
+        content:
+          type: string
+          description: Post text body
+          example: Exploring epoll, io_uring, and lock-free ring buffers.
+        is_private:
+          type: boolean
+          description: Whether the post is private to the author
+          example: false
+        created_at:
+          type: string
+          description: Creation timestamp in ISO-8601 format
+          example: '2026-10-27T00:00:00Z'
+      required:
+      - author_id
+      - content
+      - created_at
+      - id
+      - is_private
+      - title
+      additionalProperties: false
   responses:
     DEFAULT_ERROR:
       description: Default error response
@@ -290,7 +325,67 @@ paths:
         \ `403`, `422`."
       security:
       - BearerAuth: []
+  /posts/{id}:
+    get:
+      responses:
+        '422':
+          description: Validation error on post ID parameter.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '404':
+          description: Post not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden. Insufficient scope ('posts:read') or BOLA violation
+            on private post.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid Bearer access token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '200':
+          description: Post retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostResponse'
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      tags:
+      - posts
+      summary: Get Post by ID
+      description: "### Specification Details\n- **Scope Required**: `posts:read`\
+        \ (Bearer access token containing `posts:read` scope).\n- **Potential Errors**:\n\
+        \  - `401 Unauthorized`: Missing, expired, or signature-invalid Bearer token.\n\
+        \  - `403 Forbidden`: Token lacks `posts:read` scope OR caller fails object-level\
+        \ ownership check (BOLA / OWASP API1:2023) on private post.\n  - `404 Not\
+        \ Found`: Post with requested ID does not exist.\n  - `422 Unprocessable Entity`:\
+        \ Invalid post ID format.\n- **Status Codes**:\n  - `200 OK`: Post metadata\
+        \ and body.\n  - `401`, `403`, `404`, `422`."
+      security:
+      - BearerAuth: []
+      - OAuth2:
+        - posts:read
+    parameters:
+    - in: path
+      name: id
+      required: true
+      schema:
+        type: integer
+        minimum: 0
 tags:
 - name: auth
   description: Authentication operations
+- name: posts
+  description: Post management operations
 openapi: 3.0.3
