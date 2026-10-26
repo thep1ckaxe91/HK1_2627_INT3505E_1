@@ -1,0 +1,69 @@
+info:
+  description: 'OpenAPI specification for Social Network Service Auth and Post Subsystems.
+
+    Demonstrates Scope-based Access Control, BOLA prevention, and Token Lifecycles.'
+  contact:
+    email: dev@uet.vnu.edu.vn
+  title: Social Network Service API
+  version: v1
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: 'Standard Bearer JWT header: ''Authorization: Bearer <token>'''
+    OAuth2:
+      type: oauth2
+      description: OAuth 2.0 Authorization framework with scope delegation
+      flows:
+        password:
+          tokenUrl: /auth/login
+          scopes:
+            posts:read: Read permissions for public and authorized posts
+            posts:write: Create and modify posts
+  schemas:
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: Error code
+        status:
+          type: string
+          description: Error name
+        message:
+          type: string
+          description: Error message
+        errors:
+          type: object
+          description: Errors
+          additionalProperties: {}
+      additionalProperties: false
+    PaginationMetadata:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: Total number of items.
+        total_pages:
+          type: integer
+          description: Total number of pages.
+        first_page:
+          type: integer
+          description: First available page number.
+        last_page:
+          type: integer
+          description: Last available page number.
+        page:
+          type: integer
+          description: Current page number.
+        previous_page:
+          type: integer
+          description: Previous page number.
+        next_page:
+          type: integer
+          description: Next page number.
+      additionalProperties: false
+paths: {}
+openapi: 3.0.3
