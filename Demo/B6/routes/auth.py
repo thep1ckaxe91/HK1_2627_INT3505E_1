@@ -1,10 +1,20 @@
 import hashlib
 import hmac
 from flask.views import MethodView
-from flask_jwt_extended import create_access_token, create_refresh_token
+from flask_jwt_extended import (
+    create_access_token,
+    create_refresh_token,
+    get_jwt,
+    get_jwt_identity,
+    jwt_required,
+)
 from flask_smorest import Blueprint, abort
 
-from schemas.auth import LoginRequestSchema, LoginResponseSchema
+from schemas.auth import (
+    LoginRequestSchema,
+    LoginResponseSchema,
+    TokenRefreshResponseSchema,
+)
 from schemas.error import ErrorResponseSchema, ValidationErrorSchema
 
 auth_bp = Blueprint("auth", "auth", url_prefix="/auth", description="Authentication operations")
@@ -85,3 +95,51 @@ class LoginResource(MethodView):
             "expires_in": 900,
             "scopes": scopes,
         }
+
+
+@auth_bp.route("/refresh")
+class RefreshResource(MethodView):
+    """Token rotation and refresh endpoint."""
+
+    @jwt_required(refresh=True)
+    @auth_bp.response(200, TokenRefreshResponseSchema, description="Token refreshed successfully.")
+    @auth_bp.alt_response(401, schema=ErrorResponseSchema, description="Missing, invalid, or expired refresh token.")
+    @auth_bp.alt_response(403, schema=ErrorResponseSchema, description="Revoked token or insufficient refresh scope.")
+    @auth_bp.alt_response(422, schema=ValidationErrorSchema, description="Malformed authorization header.")
+    @auth_bp.doc(
+        summary="Refresh Access Token",
+        description=(
+            "### Specification Details\n"
+            "- **Scope Required**: `auth:refresh` (Dedicated Refresh Token required; Access Tokens will be rejected).\n"
+            "- **Potential Errors**:\n"
+            "  - `401 Unauthorized`: Missing Bearer header, expired token, or signature verification failure.\n"
+            "  - `403 Forbidden`: Token has been revoked in blocklist or does not contain `auth:refresh` scope.\n"
+            "  - `422 Unprocessable Entity`: Malformed token structure or unparseable Bearer format.\n"
+            "- **Status Codes**:\n"
+            "  - `200 OK`: Newly issued access token.\n"
+            "  - `401`, `403`, `422`."
+        ),
+        security=[{"BearerAuth": []}],
+    )
+    def post(self):
+        identity = get_jwt_identity()
+        claims = get_jwt()
+
+        # Scope validation: ensure token carries refresh privilege
+        scopes = claims.get("scopes", [])
+        if "auth:refresh" not in scopes:
+            abort(403, message="Insufficient scope. Dedicated refresh token required.")
+
+        user_scopes = ["posts:read", "posts:write"] if identity == "1" else ["posts:read"]
+        role = "author" if identity == "1" else "viewer"
+
+        new_access_token = create_access_token(
+            identity=identity,
+            additional_claims={"scopes": user_scopes, "role": role},
+        )
+        return {
+            "access_token": new_access_token,
+            "token_type": "Bearer",
+            "expires_in": 900,
+        }
+

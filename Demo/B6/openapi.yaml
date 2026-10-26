@@ -166,6 +166,26 @@ components:
       - refresh_token
       - scopes
       additionalProperties: false
+    TokenRefreshResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          description: Newly minted JWT Access Token (15 mins TTL)
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        token_type:
+          type: string
+          default: Bearer
+          description: Token authorization type
+          example: Bearer
+        expires_in:
+          type: integer
+          default: 900
+          description: Token lifetime in seconds
+          example: 900
+      required:
+      - access_token
+      additionalProperties: false
   responses:
     DEFAULT_ERROR:
       description: Default error response
@@ -228,6 +248,48 @@ paths:
         \ Codes**:\n  - `200 OK`: Successful authentication returning short-lived\
         \ access JWT and long-lived refresh JWT.\n  - `400`, `401`, `422`, `429`."
       security: []
+  /auth/refresh:
+    post:
+      responses:
+        '422':
+          description: Malformed authorization header.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '403':
+          description: Revoked token or insufficient refresh scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing, invalid, or expired refresh token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '200':
+          description: Token refreshed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefreshResponse'
+        default:
+          $ref: '#/components/responses/DEFAULT_ERROR'
+      tags:
+      - auth
+      summary: Refresh Access Token
+      description: "### Specification Details\n- **Scope Required**: `auth:refresh`\
+        \ (Dedicated Refresh Token required; Access Tokens will be rejected).\n- **Potential\
+        \ Errors**:\n  - `401 Unauthorized`: Missing Bearer header, expired token,\
+        \ or signature verification failure.\n  - `403 Forbidden`: Token has been\
+        \ revoked in blocklist or does not contain `auth:refresh` scope.\n  - `422\
+        \ Unprocessable Entity`: Malformed token structure or unparseable Bearer format.\n\
+        - **Status Codes**:\n  - `200 OK`: Newly issued access token.\n  - `401`,\
+        \ `403`, `422`."
+      security:
+      - BearerAuth: []
 tags:
 - name: auth
   description: Authentication operations
