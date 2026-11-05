@@ -1,0 +1,71 @@
+# ==========================================
+# Python Byte-code / Compiled Artifacts
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# ==========================================
+# Package Management (uv & pip)
+# ==========================================
+.venv/
+venv/
+.uv/
+# If you compile a local requirements file from uv, keep it, 
+# but ignore dynamic build artifacts
+pip-wheel-metadata/
+
+# ==========================================
+# Flask & SQLAlchemy Local Cache / DBs
+# ==========================================
+instance/
+.webassets-cache
+# Ignore local SQLite databases generated during development
+*.db
+*.sqlite
+*.sqlite3
+
+# ==========================================
+# Alembic (Database Migrations)
+# ==========================================
+# NOTE: Do NOT ignore the versions/ directory. Your migration files must be tracked.
+# We only ignore compiled bytecode and local configuration overrides.
+migrations/__pycache__/
+migrations/versions/__pycache__/
+
+# ==========================================
+# Connexion & API Specs
+# ==========================================
+# Generally, OpenAPI specs (openapi.yaml) are tracked. 
+# Only ignore generated HTML documentation if compiled locally.
+/docs/build/
+
+# ==========================================
+# Environment Variables & Secrets (CRITICAL)
+# ==========================================
+.env
+.env.local
+.env.*
+!.env.example
+*.env
+
+# ==========================================
+# IDEs, Editors, & OS Files
+# ==========================================
+.vscode/
+!.vscode/extensions.json
+!.vscode/launch.json
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+
+# ==========================================
+# Testing & Code Quality
+# ==========================================
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
