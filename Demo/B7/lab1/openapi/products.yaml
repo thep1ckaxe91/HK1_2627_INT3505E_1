@@ -1,0 +1,262 @@
+openapi: 3.0.3
+info:
+  version: '1.0.0'  
+  title: product-crud
+  license:
+    name: MIT
+    url: https://mit-license.org/
+  description: Product CRUD spec-first with modern python stacks
+security: []
+tags:
+  - name: observe
+    description: Management related api
+  - name: product
+    description: Operations on products
+  - name: order
+    description: Operations on orders
+servers:
+  - url: /api/v1
+
+paths:
+  /healthz:
+    servers:
+      - url: /
+    get:
+      operationId: product_api.api.health.liveness  
+      summary: "Check if server is alive"
+      responses: 
+        "200": 
+          description: "Healthy"
+        "503":
+          description: "Unavailable"
+          content: 
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        default:
+          description: "Unavailable" 
+  /ready:
+    servers:
+      - url: /
+    get:
+      operationId: product_api.api.health.readiness
+      summary: "Check if the server is ready to serve with DB and/or cache"
+      responses:
+        "200":
+          description: "Ready to server (DB and cache is healthy)"
+        default:
+          description: "Not available"
+  /products:
+    get:
+      operationId: product_api.api.products.list_products
+      summary: "Get a list of products with basics paging"
+      parameters:
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/SizeQuery'
+      responses:
+        "200":
+          description: "product list page return sucessfully"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductPage"
+        "400":
+          description: "Invalid query parameter values"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        default:
+          description: what
+    post:
+      operationId: product_api.api.products.create_product
+      summary: "Create a new product"
+      requestBody:
+        required: true
+        content: 
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductIn"
+      responses:
+        "201": 
+          description: "Product created successfully"
+          content: 
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductOut"
+        "409":
+          description: "SKU existed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: "Validation Error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        default:
+          description: what
+
+  /products/{productId}:
+    parameters:
+      - $ref: '#/components/parameters/productId'
+    get:
+      operationId: product_api.api.products.get_product
+      summary: "Get info details about a product with given id"
+      responses:
+        '200':
+          description: "Product with ID found and successfully receive"
+          content: 
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductOut"
+        '404':
+          description: "Product not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: product_api.api.products.patch_product
+      summary: "Edit the product with id"
+      responses:
+
+    delete:
+      operationId: product_api.api.products.delete_product
+      summary: ...
+      responses:
+        '200':...
+  /products/{productId}/reserve:
+    parameters:
+      - $ref: '#/components/parameters/productId'
+    
+
+components:
+  parameters: 
+    productId:
+      required: true
+      name: productId
+      in: path
+      description: "Product's id in param list"
+      schema: 
+        type: integer
+        format: int32
+    PageQuery:
+      name: page
+      in: query
+      schema: 
+        type: integer
+        format: int32
+    SizeQuery:
+      name: size
+      in: query
+      schema: 
+        type: integer
+        format: int32
+  schemas: 
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - detail
+      properties: 
+        error:
+          type: string
+          description: "Machine readable error message"
+          example: "not_found"
+        detail:
+          type: string
+          description: ""
+    ProductOut:
+      type: object
+      required:
+        - id
+        - sku
+        - name
+        - price_cents
+        - qty_in_stock
+        - archived
+      properties: 
+        id:
+          type: integer
+          example: 1
+        sku:
+          type: string
+          example: "PROD-101"
+        name:
+          type: string
+          example: "Tshirt Male Black"
+        price_cents:
+          type: integer
+          example: 123456789
+        description:
+          type: string
+          nullable: true
+        qty_in_stock:
+          type: integer
+          example: 123
+        archived:
+          type: boolean
+          example: false  
+    
+    ProductPage:
+      type: object
+      required:
+        - items
+        - page
+        - size
+        - total
+      properties: 
+        items:
+          type: array
+          items: 
+            $ref: "#/components/schemas/ProductOut"
+        page:
+          type: integer
+          example: 1
+        size:
+          type: integer
+          example: 5
+        total:
+          type: integer
+          example: 50
+    ProductIn:
+      type: object
+      required:
+        - name
+        - sku
+        - price_cents
+      properties: 
+        sku:
+          type: string
+          minLength: 3
+          maxLength: 32
+          pattern: '^[A-Za-z0-9-_]+$'
+          example: "PROD-101"
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          example: "Tshirt Male Black"
+        price_cents:
+          type: integer
+          minimum: 0
+          example: 123456789
+        qty_in_stock:
+          type: integer
+          minimum: 0
+          default: 0
+          example: 10          
+    ProductPatch:
+      type: object
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          example: "Tshirt Male Black"
+        price_cents:
+          type: integer
+          minimum: 0
+          example: 123456789
