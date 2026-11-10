@@ -14,7 +14,13 @@ import product_api.models  # noqa: F401 - register models on db.metadata
 def create_app(config: Optional[Any] = None) -> connexion.FlaskApp:
     """Application factory for Connexion/Flask backend service."""
     # Resolve absolute path to openapi specifications directory
-    spec_dir = Path(__file__).resolve().parent.parent.parent / "openapi"
+    spec_dir_env = os.environ.get("OPENAPI_SPEC_DIR")
+    if spec_dir_env and Path(spec_dir_env).is_dir():
+        spec_dir = Path(spec_dir_env).resolve()
+    elif (Path.cwd() / "openapi").is_dir():
+        spec_dir = (Path.cwd() / "openapi").resolve()
+    else:
+        spec_dir = (Path(__file__).resolve().parent.parent.parent / "openapi").resolve()
 
     connexion_app = connexion.FlaskApp(
         __name__,

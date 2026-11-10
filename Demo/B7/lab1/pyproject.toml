@@ -6,7 +6,7 @@ readme = "README.md"
 authors = [
     { name = "thep1ckaxe91", email = "ThePickaxe91@gmail.com" }
 ]
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 dependencies = [
     "connexion[flask,swagger-ui,uvicorn]>=3.3.0",
     "flask>=3.1.3",

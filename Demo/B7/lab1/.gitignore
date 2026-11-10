@@ -69,3 +69,9 @@ Thumbs.db
 .ruff_cache/
 .coverage
 htmlcov/
+
+# ==========================================
+# Offline Container Wheels Cache
+# ==========================================
+wheels/
+*.whl
