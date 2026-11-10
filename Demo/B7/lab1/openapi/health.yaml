@@ -1,98 +1,93 @@
-openapi: 3.0.3
+components:
+  schemas:
+    ErrorResponse:
+      properties:
+        detail:
+          description: Human readable error detail
+          example: database unreachable
+          type: string
+        error:
+          description: Machine readable error code
+          example: service_unavailable
+          type: string
+      required:
+      - error
+      - detail
+      type: object
+    HealthProbe:
+      properties:
+        status:
+          example: ok
+          type: string
+      required:
+      - status
+      type: object
+    ReadinessProbe:
+      properties:
+        checks:
+          properties:
+            db:
+              example: ok
+              type: string
+          type: object
+        status:
+          example: ok
+          type: string
+      required:
+      - status
+      - checks
+      type: object
 info:
-  version: "1.0.0"
+  description: Liveness and Readiness Probes for Kubernetes / Docker orchestrator
   title: health-api
-  description: "Liveness and Readiness Probes for Kubernetes / Docker orchestrator"
-servers:
-  - url: /
+  version: 1.0.0
+openapi: 3.0.3
 paths:
   /healthz:
     get:
       operationId: product_api.api.health.liveness
-      summary: "Liveness probe - checks if python event loop/process is alive"
-      security: []
       responses:
-        "200":
-          description: "Healthy"
+        '200':
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HealthProbe"
-        "503":
-          description: "Unavailable"
+                $ref: '#/components/schemas/HealthProbe'
+          description: Healthy
+        4XX:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "4XX":
-          description: "Unavailable"
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unavailable
+        '503':
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unavailable
+      security: []
+      summary: Liveness probe - checks if python event loop/process is alive
   /ready:
     get:
       operationId: product_api.api.health.readiness
-      summary: "Readiness probe - checks database connectivity"
-      security: []
       responses:
-        "200":
-          description: "Ready to serve traffic"
+        '200':
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ReadinessProbe"
-        "503":
-          description: "Service unavailable / Database down"
+                $ref: '#/components/schemas/ReadinessProbe'
+          description: Ready to serve traffic
+        4XX:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "4XX":
-          description: "Service unavailable / Database down"
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service unavailable / Database down
+        '503':
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
-
-components:
-  schemas:
-    HealthProbe:
-      type: object
-      required:
-        - status
-      properties:
-        status:
-          type: string
-          example: "ok"
-
-    ReadinessProbe:
-      type: object
-      required:
-        - status
-        - checks
-      properties:
-        status:
-          type: string
-          example: "ok"
-        checks:
-          type: object
-          properties:
-            db:
-              type: string
-              example: "ok"
-
-    ErrorResponse:
-      type: object
-      required:
-        - error
-        - detail
-      properties:
-        error:
-          type: string
-          description: "Machine readable error code"
-          example: "service_unavailable"
-        detail:
-          type: string
-          description: "Human readable error detail"
-          example: "database unreachable"
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service unavailable / Database down
+      security: []
+      summary: Readiness probe - checks database connectivity

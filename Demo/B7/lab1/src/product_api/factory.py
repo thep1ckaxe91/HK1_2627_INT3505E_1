@@ -7,6 +7,8 @@ from product_api.config import DefaultConfig
 from product_api.extensions import db, migrate
 from product_api.errors import register_error_handlers
 from product_api.logging_config import configure_logging
+from product_api.api.health import health_bp
+import product_api.models  # noqa: F401 - register models on db.metadata
 
 
 def create_app(config: Optional[Any] = None) -> connexion.FlaskApp:
@@ -33,8 +35,10 @@ def create_app(config: Optional[Any] = None) -> connexion.FlaskApp:
     configure_logging(flask_app)
     register_error_handlers(connexion_app)
 
-    # Register modular OpenAPI specs with distinct blueprint names
-    connexion_app.add_api("health.yaml", base_path="/", name="health_api", validate_responses=True)
+    # Register core health probes via lightweight Flask Blueprint (Slide 37)
+    flask_app.register_blueprint(health_bp)
+
+    # Register modular OpenAPI specs for domain business services
     connexion_app.add_api("products.yaml", base_path="/api/v1", name="products_api", validate_responses=True)
     connexion_app.add_api("orders.yaml", base_path="/api/v1", name="orders_api", validate_responses=True)
 

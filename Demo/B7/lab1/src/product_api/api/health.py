@@ -1,15 +1,19 @@
-from typing import Any, Dict, Tuple
+from flask import Blueprint, jsonify
 from sqlalchemy import text
 from product_api.extensions import db
 
-
-def liveness() -> Tuple[Dict[str, Any], int]:
-    """Lightweight in-memory probe: verifies process event loop is alive."""
-    return {"status": "ok"}, 200
+health_bp = Blueprint("health", __name__, url_prefix="")
 
 
-def readiness() -> Tuple[Dict[str, Any], int]:
-    """Dependency probe: verifies database connection pool is operational."""
+@health_bp.get("/healthz")
+def liveness():
+    """Liveness probe: verifies process event loop is alive (no DB overhead)."""
+    return jsonify({"status": "ok"}), 200
+
+
+@health_bp.get("/ready")
+def readiness():
+    """Readiness probe: verifies database connection pool is operational."""
     checks = {}
     try:
         db.session.execute(text("SELECT 1"))
@@ -17,11 +21,8 @@ def readiness() -> Tuple[Dict[str, Any], int]:
     except Exception:
         checks["db"] = "err"
 
-    is_healthy = all(status == "ok" for status in checks.values())
+    is_ok = all(v == "ok" for v in checks.values())
     return (
-        {
-            "status": "ok" if is_healthy else "degraded",
-            "checks": checks,
-        },
-        200 if is_healthy else 503,
+        jsonify({"status": "ok" if is_ok else "degraded", "checks": checks}),
+        200 if is_ok else 503,
     )

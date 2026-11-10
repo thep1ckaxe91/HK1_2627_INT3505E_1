@@ -1,5 +1,6 @@
 import os
 from typing import Any, Dict
+from sqlalchemy.pool import StaticPool
 
 
 class DefaultConfig:
@@ -18,8 +19,11 @@ class TestConfig(DefaultConfig):
     TESTING = True
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
     LOG_LEVEL = "WARNING"
-    # StaticPool on in-memory SQLite does not support pool_size/max_overflow
-    SQLALCHEMY_ENGINE_OPTIONS: Dict[str, Any] = {}
+    # StaticPool allows multiple connections in tests to share the single in-memory SQLite DB
+    SQLALCHEMY_ENGINE_OPTIONS: Dict[str, Any] = {
+        "poolclass": StaticPool,
+        "connect_args": {"check_same_thread": False},
+    }
 
 
 class ProductionConfig(DefaultConfig):
