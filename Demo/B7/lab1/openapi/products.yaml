@@ -1,61 +1,20 @@
 openapi: 3.0.3
 info:
-  version: '1.0.0'  
-  title: product-crud
-  license:
-    name: MIT
-    url: https://mit-license.org/
-  description: Product CRUD spec-first with modern python stacks
+  version: "1.0.0"
+  title: products-api
+  description: "Product CRUD and Stock Reservation Specification"
 security: []
-tags:
-  - name: observe
-    description: Management related api
-  - name: product
-    description: Operations on products
-  - name: order
-    description: Operations on orders
-servers:
-  - url: /api/v1
-
 paths:
-  /healthz:
-    servers:
-      - url: /
-    get:
-      operationId: product_api.api.health.liveness  
-      summary: "Check if server is alive"
-      responses: 
-        "200": 
-          description: "Healthy"
-        "503":
-          description: "Unavailable"
-          content: 
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        default:
-          description: "Unavailable" 
-  /ready:
-    servers:
-      - url: /
-    get:
-      operationId: product_api.api.health.readiness
-      summary: "Check if the server is ready to serve with DB and/or cache"
-      responses:
-        "200":
-          description: "Ready to server (DB and cache is healthy)"
-        default:
-          description: "Not available"
   /products:
     get:
       operationId: product_api.api.products.list_products
-      summary: "Get a list of products with basics paging"
+      summary: "Get paginated list of non-archived products"
       parameters:
-        - $ref: '#/components/parameters/PageQuery'
-        - $ref: '#/components/parameters/SizeQuery'
+        - $ref: "#/components/parameters/PageQuery"
+        - $ref: "#/components/parameters/SizeQuery"
       responses:
         "200":
-          description: "product list page return sucessfully"
+          description: "Paginated list of products"
           content:
             application/json:
               schema:
@@ -66,109 +25,184 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-        default:
-          description: what
+
     post:
       operationId: product_api.api.products.create_product
       summary: "Create a new product"
       requestBody:
         required: true
-        content: 
+        content:
           application/json:
             schema:
               $ref: "#/components/schemas/ProductIn"
       responses:
-        "201": 
+        "201":
           description: "Product created successfully"
-          content: 
+          content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProductOut"
         "409":
-          description: "SKU existed"
+          description: "SKU already exists"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "422":
-          description: "Validation Error"
+          description: "Validation error"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-        default:
-          description: what
 
-  /products/{productId}:
+  /products/{id}:
     parameters:
-      - $ref: '#/components/parameters/productId'
+      - $ref: "#/components/parameters/id"
     get:
       operationId: product_api.api.products.get_product
-      summary: "Get info details about a product with given id"
+      summary: "Get product details by ID"
       responses:
-        '200':
-          description: "Product with ID found and successfully receive"
-          content: 
+        "200":
+          description: "Product found"
+          content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProductOut"
-        '404':
-          description: "Product not found"
+        "404":
+          description: "Product not found or archived"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+
     patch:
       operationId: product_api.api.products.patch_product
-      summary: "Edit the product with id"
+      summary: "Partially update product fields"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductPatch"
       responses:
+        "200":
+          description: "Product updated successfully"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductOut"
+        "404":
+          description: "Product not found or archived"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: "Validation error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
     delete:
       operationId: product_api.api.products.delete_product
-      summary: ...
+      summary: "Soft delete product by ID (set archived = true)"
       responses:
-        '200':...
-  /products/{productId}/reserve:
+        "204":
+          description: "Product archived successfully"
+        "404":
+          description: "Product not found or already archived"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /products/{id}/reserve:
     parameters:
-      - $ref: '#/components/parameters/productId'
-    
+      - $ref: "#/components/parameters/id"
+    post:
+      operationId: product_api.api.products.reserve_product
+      summary: "Atomically decrement stock quantity"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReserveIn"
+      responses:
+        "200":
+          description: "Stock successfully reserved"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductOut"
+        "404":
+          description: "Product not found or archived"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: "Out of stock / Insufficient quantity"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: "Validation error (e.g. qty < 1)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
 components:
-  parameters: 
-    productId:
+  parameters:
+    id:
       required: true
-      name: productId
+      name: id
       in: path
-      description: "Product's id in param list"
-      schema: 
+      description: "Numeric product primary key"
+      schema:
         type: integer
         format: int32
     PageQuery:
       name: page
       in: query
-      schema: 
+      required: false
+      description: "1-based page number"
+      schema:
         type: integer
         format: int32
+        default: 1
+        minimum: 1
     SizeQuery:
       name: size
       in: query
-      schema: 
+      required: false
+      description: "Page size"
+      schema:
         type: integer
         format: int32
-  schemas: 
+        default: 20
+        minimum: 1
+        maximum: 100
+
+  schemas:
     ErrorResponse:
       type: object
       required:
         - error
         - detail
-      properties: 
+      properties:
         error:
           type: string
-          description: "Machine readable error message"
-          example: "not_found"
+          description: "Machine readable error code"
+          example: "conflict"
         detail:
           type: string
-          description: ""
+          description: "Human readable error detail"
+          example: "sku already exists"
+
     ProductOut:
       type: object
       required:
@@ -178,7 +212,7 @@ components:
         - price_cents
         - qty_in_stock
         - archived
-      properties: 
+      properties:
         id:
           type: integer
           example: 1
@@ -187,20 +221,21 @@ components:
           example: "PROD-101"
         name:
           type: string
-          example: "Tshirt Male Black"
-        price_cents:
-          type: integer
-          example: 123456789
+          example: "Mechanical Keyboard"
         description:
           type: string
           nullable: true
+          example: "Tactile brown switches"
+        price_cents:
+          type: integer
+          example: 9999
         qty_in_stock:
           type: integer
-          example: 123
+          example: 50
         archived:
           type: boolean
-          example: false  
-    
+          example: false
+
     ProductPage:
       type: object
       required:
@@ -208,55 +243,78 @@ components:
         - page
         - size
         - total
-      properties: 
+      properties:
         items:
           type: array
-          items: 
+          items:
             $ref: "#/components/schemas/ProductOut"
         page:
           type: integer
           example: 1
         size:
           type: integer
-          example: 5
+          example: 20
         total:
           type: integer
-          example: 50
+          example: 1
+
     ProductIn:
       type: object
       required:
-        - name
         - sku
+        - name
         - price_cents
-      properties: 
+      properties:
         sku:
           type: string
           minLength: 3
           maxLength: 32
-          pattern: '^[A-Za-z0-9-_]+$'
+          pattern: "^[A-Za-z0-9-_]+$"
           example: "PROD-101"
         name:
           type: string
           minLength: 1
           maxLength: 255
-          example: "Tshirt Male Black"
+          example: "Mechanical Keyboard"
+        description:
+          type: string
+          nullable: true
+          maxLength: 2000
+          example: "Tactile brown switches"
         price_cents:
           type: integer
           minimum: 0
-          example: 123456789
+          example: 9999
         qty_in_stock:
           type: integer
           minimum: 0
           default: 0
-          example: 10          
+          example: 50
+
     ProductPatch:
       type: object
       minProperties: 1
       properties:
         name:
           type: string
-          example: "Tshirt Male Black"
+          minLength: 1
+          maxLength: 255
+          example: "Mechanical Keyboard V2"
+        description:
+          type: string
+          nullable: true
+          maxLength: 2000
         price_cents:
           type: integer
           minimum: 0
-          example: 123456789
+          example: 8999
+
+    ReserveIn:
+      type: object
+      required:
+        - qty
+      properties:
+        qty:
+          type: integer
+          minimum: 1
+          example: 2

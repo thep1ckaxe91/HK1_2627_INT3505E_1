@@ -1,0 +1,98 @@
+openapi: 3.0.3
+info:
+  version: "1.0.0"
+  title: health-api
+  description: "Liveness and Readiness Probes for Kubernetes / Docker orchestrator"
+servers:
+  - url: /
+paths:
+  /healthz:
+    get:
+      operationId: product_api.api.health.liveness
+      summary: "Liveness probe - checks if python event loop/process is alive"
+      security: []
+      responses:
+        "200":
+          description: "Healthy"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthProbe"
+        "503":
+          description: "Unavailable"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "4XX":
+          description: "Unavailable"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /ready:
+    get:
+      operationId: product_api.api.health.readiness
+      summary: "Readiness probe - checks database connectivity"
+      security: []
+      responses:
+        "200":
+          description: "Ready to serve traffic"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessProbe"
+        "503":
+          description: "Service unavailable / Database down"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "4XX":
+          description: "Service unavailable / Database down"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  schemas:
+    HealthProbe:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          example: "ok"
+
+    ReadinessProbe:
+      type: object
+      required:
+        - status
+        - checks
+      properties:
+        status:
+          type: string
+          example: "ok"
+        checks:
+          type: object
+          properties:
+            db:
+              type: string
+              example: "ok"
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - detail
+      properties:
+        error:
+          type: string
+          description: "Machine readable error code"
+          example: "service_unavailable"
+        detail:
+          type: string
+          description: "Human readable error detail"
+          example: "database unreachable"
