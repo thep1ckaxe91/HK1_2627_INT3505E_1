@@ -125,3 +125,11 @@ lab08-starter/
 
 - OpenAPI cố ý chứa lỗi nên các công cụ contract check phải fail **trước khi sửa**.
 - `pytest` và Newman đều chạy được độc lập sau khi đã cài dependency, không cần Postman GUI.
+
+![pytest pass](image.png)
+
+![newman run success](image-1.png)
+
+![spectral lint no edit](image-3.png)
+
+![spectral lint no problem](image-2.png)
