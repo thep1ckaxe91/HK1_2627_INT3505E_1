@@ -32,3 +32,14 @@ rules:
       functionOptions:
         values:
           - integer
+
+  # Custom rule: HTTP 200 responses must define a non-empty schema
+  response-200-has-non-empty-schema:
+    description: "HTTP 200 responses must define a non-empty schema object."
+    message: "HTTP 200 response must have a schema defined under content/application/json."
+    severity: error
+    given: "$.paths.*.*.responses['200'].content['application/json']"
+    then:
+      field: schema
+      function: defined
+
