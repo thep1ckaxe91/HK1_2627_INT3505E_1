@@ -1,0 +1,34 @@
+extends: ["spectral:oas"]
+rules:
+  # Issue 1: operationId is missing
+  require-operation-id:
+    description: "Every operation must have an operationId defined."
+    message: "OperationId is missing for this endpoint."
+    severity: error
+    given: "$.paths.*[get,put,post,delete,options,head,patch]"
+    then:
+      field: operationId
+      function: truthy
+
+  # Issue 2: 204 incorrectly declares a body
+  no-204-content:
+    description: "204 No Content responses must not declare a body (content)."
+    message: "204 responses cannot have a 'content' object."
+    severity: error
+    given: "$.paths.*.*.responses['204']"
+    then:
+      field: content
+      function: falsy
+
+  # Issue 3: actual Book.year is integer/null
+  book-year-is-integer:
+    description: "Book.year schema type should be integer, not string."
+    message: "The type for Book.year must be 'integer'."
+    severity: error
+    given: "$.components.schemas.Book.properties.year"
+    then:
+      field: type
+      function: enumeration
+      functionOptions:
+        values:
+          - integer
