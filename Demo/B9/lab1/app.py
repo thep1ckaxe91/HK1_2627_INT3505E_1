@@ -1,4 +1,4 @@
-from flasj import Flask
+from flask import Flask
 from blueprints.v1 import bp as v1_bp
 from blueprints.v2 import bp as v2_bp
 
