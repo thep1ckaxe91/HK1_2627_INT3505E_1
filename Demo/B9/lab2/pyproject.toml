@@ -1,0 +1,8 @@
+[project]
+name = "lab2"
+version = "0.1.0"
+description = "Header versioning with @api_version decorator"
+requires-python = ">=3.11"
+dependencies = [
+    "flask>=3.1.0",
+]
