@@ -1,0 +1,125 @@
+openapi: 3.0.3
+info:
+  title: User API (URI Path Versioning)
+  version: 2.0.0
+  description: URI Path Versioning lab with deprecated v1 and active v2 user endpoints.
+servers:
+  - url: http://127.0.0.1:5000
+paths:
+  /api/v1/users/{uid}:
+    get:
+      summary: Get user (v1 legacy schema)
+      deprecated: true
+      parameters:
+        - name: uid
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User found (legacy full_name format)
+          headers:
+            Sunset:
+              schema:
+                type: string
+            Deprecation:
+              schema:
+                type: string
+            Link:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserV1"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v2/users:
+    post:
+      summary: Create user (v2 schema)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserV2"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserV2"
+        "400":
+          description: Missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v2/users/{uid}:
+    get:
+      summary: Get user (v2 split name schema)
+      parameters:
+        - name: uid
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserV2"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+components:
+  schemas:
+    UserV1:
+      type: object
+      required: [id, full_name, email]
+      properties:
+        id:
+          type: integer
+        full_name:
+          type: string
+        email:
+          type: string
+    UserV2:
+      type: object
+      required: [id, first_name, last_name, email]
+      properties:
+        id:
+          type: integer
+        first_name:
+          type: string
+        last_name:
+          type: string
+        email:
+          type: string
+    CreateUserV2:
+      type: object
+      required: [first_name, last_name, email]
+      properties:
+        first_name:
+          type: string
+        last_name:
+          type: string
+        email:
+          type: string
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string

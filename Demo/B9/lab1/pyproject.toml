@@ -1,0 +1,8 @@
+[project]
+name = "lab1"
+version = "0.1.0"
+description = "URI Path Versioning with Flask Blueprints"
+requires-python = ">=3.11"
+dependencies = [
+    "flask>=3.1.0",
+]
